@@ -5,6 +5,9 @@ require_once("../application/models/usersModel.php");
 
 $config=readConfig('../application/configs/config.ini', 'production');
 
+// Initializing variables
+$arrayUser=initArrayUser();
+
 if(isset($_GET['action']))
 	$action=$_GET['action'];
 else 
@@ -15,8 +18,8 @@ switch($action)
 	case 'update':
 		if($_POST)
 		{
-			$imageName=uploadImage($_FILES,$config['uploadDirectory']);
-			//TODO: Update file 
+			$imageName=updateImage($_FILES,$config['uploadDirectory'], $_GET['id']);
+			updateToFile($imageName,$config['filename'], $_GET['id']);
 			header("Location: users.php?action=select");
 			exit();
 		}
@@ -28,7 +31,9 @@ switch($action)
 		{
 			//TODO: Arreglar entrada acentos (charset form UTF-8)
 			$imageName=uploadImage($_FILES,$config['uploadDirectory']);
-			writeToFile($imageName,$config['filename']);
+			$arrayUser = array_merge(initKeyedArrayUser(),$_POST);
+			writeToFile($arrayUser,$imageName,$config['filename']);
+			//writeToFile($_POST,$imageName,$config['filename']);
 			header("Location: users.php?action=select");
 			exit();
 		}
@@ -36,6 +41,17 @@ switch($action)
 			include("../application/views/formulario.php");
 		break;
 	case 'delete':
+		if($_POST)
+		{
+			if($_POST['submit']=='si')
+				deleteUser($config['uploadDirectory'],$_GET['id'],$config['filename']);
+			header("Location: users.php?action=select");
+			exit();
+		}
+		else
+		{
+			include("../application/views/delete.php");
+		}
 		break;
 	case 'select':
 		$arrayUsers=readUsersFromFile($config['filename']);
@@ -43,4 +59,7 @@ switch($action)
 	default:
 		break;
 }
+
+$content = "ESTO ES CONTENT EN USERS";
+include("../application/layouts/layout_admin1.php");
 ?>
