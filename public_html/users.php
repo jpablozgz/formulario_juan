@@ -52,10 +52,6 @@ switch($action)
 		break;
 	case 'select':
 		$arrayUsers = readUsersFromFile($config);
-			echo "<pre>";
-			print_r($arrayUsers);
-			echo "</pre>";
-//			die;
 		$content = renderView("select", array('arrayUsers'=>$arrayUsers), $config);
 	default:
 		break;

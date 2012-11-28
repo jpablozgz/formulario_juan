@@ -34,15 +34,13 @@ function uploadImage($_FILES, $config)
 function updateImage($_FILES, $id, $config)
 {
 	$arrayUser=readUser($id,$config);
+	$image=trim($arrayUser[9]);
 	if(!$_FILES['photo']['error'])
 	{
-		$old_image=trim($arrayUser[9]);
-		//	Delete photo
-		unlink($config['uploadDirectory']."/".$old_image);
-		//	Upload new photo
-		$new_image=uploadImage($_FILES, $config);
+		unlink($config['uploadDirectory']."/".$image); // deletes old photo
+		$image=uploadImage($_FILES, $config);		   // uploads new photo
 	}
-	return $new_image;
+	return $image;
 }
 
 /** Write user to .txt file
