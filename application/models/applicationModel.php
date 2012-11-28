@@ -49,13 +49,13 @@ function readConfig($configFile, $context)
 }
 
 /**
- * Renders view
- * @param array $config Config file
- * @param string $view File to be rendered
+ * Renders a view
+ * @param string $view View to be rendered
  * @param array $params Parameters of the view
- * @return string Content
+ * @param array $config Config variables
+ * @return string Rendered view
  */
-function renderView($config, $view, array $params)
+function renderView($view, array $params, $config)
 {
 	ob_start();
 	include($config['viewsDirectory']."/".$view.".php");

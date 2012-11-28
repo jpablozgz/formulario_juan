@@ -1,146 +1,142 @@
 <?php
 
 /** Upload photo in uploads
- * @param array $_FILE Array FILES
- * @param string $uploadDirectory Upload Directory
- * @return string $image final name
+ * @param array $_FILES Array FILES
+ * @param array $config Config variables
+ * @return string: Final filename of the photograph
  */
-function uploadImage($_FILE,$uploadDirectory)
+function uploadImage($_FILES, $config)
 {
-	$destination = $uploadDirectory."/".$_FILE['photo']['name'];
-	$filename = $_FILE['photo']['tmp_name'];
+	$destination = $config['uploadDirectory']."/".$_FILES['photo']['name'];
+	$filename = $_FILES['photo']['tmp_name'];
 	
 	$path_parts = pathinfo($destination);
 	$name=$path_parts['basename'];
 	
 	$i=0;
-	while(in_array($name,scandir($uploadDirectory)))
+	while(in_array($name,scandir($config['uploadDirectory'])))
 	{
 		$i++;	
 		$name=$path_parts['filename']."_".$i.".".$path_parts['extension'];
 	}
 	
-	$destination = $uploadDirectory."/".$name;
+	$destination = $config['uploadDirectory']."/".$name;
 	move_uploaded_file($filename, $destination);
 	return $name;
 }
 
 /** Update photo in uploads
- * @param array $_FILE Array FILES
- * @param string $uploadDirectory Upload Directory
+ * @param array $_FILES Array FILES
  * @param int User id
- * @param string $fileName Users filename
- * @return string $image final name
+ * @param array $config Config variables
+ * @return string: Filename of the new photo
  */
-function updateImage($_FILE,$uploadDirectory,$id,$filename)
+function updateImage($_FILES, $id, $config)
 {
-	$arrayUser=readUser($id,$filename);
-	$image=$arrayUser[10];
-	if(isset($_FILES['photo']['name']))
+	$arrayUser=readUser($id,$config);
+	if(!$_FILES['photo']['error'])
 	{
-		//	borrar imagen
-		unlink($uploadDirectory."/".$image);
-		//	subir imagen nueva
-		$image=str_replace("\r", "", $image);
-		$image=str_replace("\n", "", $image);
-		$image=uploadImage($_FILES);
+		$old_image=trim($arrayUser[9]);
+		//	Delete photo
+		unlink($config['uploadDirectory']."/".$old_image);
+		//	Upload new photo
+		$new_image=uploadImage($_FILES, $config);
 	}
-	return $image;
+	return $new_image;
 }
 
-/** Write users to .txt file
- * @param array $arrayUser User array
- * @param string $imageName final image name
- * @param string $fileName Users filename
+/** Write user to .txt file
+ * @param string $imageName Final filename of the photograph
+ * @param array $config Config variables
  */
-function writeToFile($arrayUser,$imageName,$filename)
+function writeToFile($imageName, $config)
 {
+	$arrayUser = array_merge(initArrayUserWithKeys(),$_POST);
+	
 	foreach($arrayUser as $key => $value)
 	{
 		if(is_array($value))
 			$value=implode(',',$value);
-		
-		$arrayUser[$key]=$value;
-		
-		// Problema: En el campo Description puedo meter retornos de carro.
-		// La forma de solucionarlo es utilizar nl2br() para que meta el tag <br> antes de los \n o \r
-	}
+		$arrayUser[$key]=trim($value);
+	}	
 	$arrayUser[]=$imageName;
 	$textUser=implode('|',$arrayUser);
 	
-	appendUserToFile($textUser, $filename);
+	appendUserToFile($textUser, $config);
 }
 
 /** Update user in .txt file
- * @param string $imageName final image name
- * @param string $fileName Users filename
  * @param int $id User id
+ * @param string $imageName Photo filename
+ * @param array $config Config variables
  */
-function updateToFile($imageName,$filename,$id)
+function updateToFile($id, $imageName, $config)
 {
-	// Leer los datos del archivo
-	$arrayUsers=readUsersFromFile($filename);
+	// Reads users data from file
+	$arrayUsers=readUsersFromFile($config);
 		
-	foreach($_POST as $value)
+	$arrayUser = array_merge(initArrayUserWithKeys(),$_POST);
+	
+	foreach($arrayUser as $key => $value)
 	{
 		if(is_array($value))
 			$value=implode(',',$value);
-		
-		$arrayUser[]=$value;
-		
-		// Problema: En el campo Description puedo meter retornos de carro.
-		// La forma de solucionarlo es utilizar nl2br() para que meta el tag <br> antes de los \n o \r
-	}
+		$arrayUser[$key]=trim($value);
+	}	
 	$arrayUser[]=$imageName;
 	$textUser=implode('|',$arrayUser);
 	
 	$arrayUsers[$id]=$textUser;
-	writeUsersToFile($arrayUsers, $filename);
+	writeUsersToFile($arrayUsers, $config);
 }
 
 /** Read users from file
- * @param string $filename Users filename
+ * @param array $config Config variables
  * @return array: Users array
  */
-function readUsersFromFile($filename)
+function readUsersFromFile($config)
 {
+	// Ignore the final "\r\n" and other trash at the end/beginning of file
+	$usersText = trim(file_get_contents($config['filename']));
+	
 	// Remove all newline chars ('\n') preceded by a <br /> tag
 	$sustituye = array("<br />\n\r", "<br />\r\n", "br />\n");
-	$usersText = str_replace($sustituye,"<br />\r",file_get_contents($filename));
+	$usersText = str_replace($sustituye, "<br />\r", $usersText);
 
 	// Remove BOM if exists
 	$bom = pack("CCC", 0xef, 0xbb, 0xbf);
 	if (0 == strncmp($usersText, $bom, 3))
 		$usersText = substr($usersText, 3);
-		
-	// Segregate users delimited by the newline character ('\')
-	$arrayUsers=explode("\n",$usersText);
+	
+	// Segregate users delimited by the CR+LF sequence
+	$arrayUsers=($usersText ? explode("\r\n",$usersText) : array());
 	
 	// Restore all newline chars previously removed and remove the <br /> tags
 	foreach ($arrayUsers as $key => $value)
 		$arrayUsers[$key] = str_replace("<br />\r","\r\n",$value);
-	while(count($arrayUsers)!=0 && str_replace("\r","",end($arrayUsers))=='')
-		array_pop($arrayUsers);
-			
+	
 	return $arrayUsers;
 }
 
 /** Append user to file
  * @param string $textUser User text
- * @param string $filename Users filename
+ * @param string $config Config variables
  */
-function appendUserToFile($textUser, $filename)
+function appendUserToFile($textUser, $config)
 {
+	// Since line feeds are allowed in form textareas, and \r\n delimits users
+	// within the text file, we prefix those line feeds with the <br /> tag in
+	// order to properly detect them when reading+parsing the text file
 	$textUser=nl2br($textUser);
 	
-	file_put_contents($filename,$textUser."\r\n",FILE_APPEND);
+	file_put_contents($config['filename'],$textUser."\r\n",FILE_APPEND);
 }
 
 /** Write users to file
  * @param array $arrayUsers Users array
- * @param string $filename Users filename
+ * @param array $config Config variables
  */
-function writeUsersToFile($arrayUsers, $filename)
+function writeUsersToFile($arrayUsers, $config)
 {
 	// Precede line feeds with the <br /> tag
 	foreach ($arrayUsers as $key => $value)
@@ -148,20 +144,23 @@ function writeUsersToFile($arrayUsers, $filename)
 	// Users segregated by the newline character ('\')
 	$textUsers=implode("\r\n",$arrayUsers);
 	// Write to file
-	file_put_contents($filename,$textUsers."\r\n");
+	if($textUsers)
+		file_put_contents($config['filename'],$textUsers."\r\n");
+	else 
+		file_put_contents($config['filename'],"");
 }
 
 /**
  * Read user from file to array
  * @param int $id Usr id
- * @param string $filename Users filename
+ * @param array $config Config variables
  * @return string: 
  */
-function readUser($id,$filename)
+function readUser($id, $config)
 {
-	// Leer los usuarios
-	$arrayUsers=readUsersFromFile($filename);
-	// Mostrar los datos del usuario ID
+	// Read users
+	$arrayUsers=readUsersFromFile($config);
+	// Select data of user $id
 	$arrayUser=$arrayUsers[$_GET['id']];
 	$arrayUser=explode("|",$arrayUser);
 	return($arrayUser);
@@ -171,7 +170,7 @@ function readUser($id,$filename)
  * Initialize user array with keys
  * @return array: User array initialized
  */
-function initKeyedArrayUser()
+function initArrayUserWithKeys()
 {
 	$keys=array('id','name','email','pass','desc','pet','city','coder','languages');
 	$arrayUser=array();
@@ -195,23 +194,23 @@ function initArrayUser()
 /**
  * Delete user from file and image from directory
  * @param int $id User id
- * @param string $filename Users filename
+ * @param array $config Config variables
  */
-function deleteUser($uploadDirectory,$id,$filename)
+function deleteUser($id, $config)
 {
-	$arrayUser = readUser($id,$filename);
+	$arrayUser = readUser($id, $config);
 	
 	// Delete user photo
-	$image = $arrayUser[10];
+	$image = $arrayUser[9];
 	$image=str_replace("\r", "", $image);
 	$image=str_replace("\n", "", $image);
-	unlink($uploadDirectory."/".$image);
+	unlink($config['uploadDirectory']."/".$image);
 
 	// Deletes the user from the users array
-	$arrayUsers=readUsersFromFile($filename);
+	$arrayUsers=readUsersFromFile($config);
 	unset($arrayUsers[$id]);
 	
 	// Rewrites the .txt file
-	writeUsersToFile($arrayUsers, $filename);
+	writeUsersToFile($arrayUsers, $config);
 }
 ?>

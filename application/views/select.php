@@ -13,7 +13,7 @@
 		foreach($user as $value):
 		?>
 			<td>
-			<?=nl2br($value); ?>
+			<?=nl2br(htmlspecialchars($value)); ?>
 			</td>
 		<?php endforeach;?>
 		<td>
