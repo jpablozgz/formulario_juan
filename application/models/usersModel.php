@@ -105,17 +105,23 @@ function updateToFile($imageName,$filename,$id)
 function readUsersFromFile($filename)
 {
 	// Remove all newline chars ('\n') preceded by a <br /> tag
-	$usersText = str_replace("<br />\n\r","<br />\r",file_get_contents($filename));
-	$usersText = str_replace("<br />\r\n","<br />\r",$usersText);
-	$usersText = str_replace("<br />\n","<br />\r",$usersText);
-	// Users segregated by the newline character ('\')
+	$sustituye = array("<br />\n\r", "<br />\r\n", "br />\n");
+	$usersText = str_replace($sustituye,"<br />\r",file_get_contents($filename));
+
+	// Remove BOM if exists
+	$bom = pack("CCC", 0xef, 0xbb, 0xbf);
+	if (0 == strncmp($usersText, $bom, 3))
+		$usersText = substr($usersText, 3);
+		
+	// Segregate users delimited by the newline character ('\')
 	$arrayUsers=explode("\n",$usersText);
+	
 	// Restore all newline chars previously removed and remove the <br /> tags
 	foreach ($arrayUsers as $key => $value)
 		$arrayUsers[$key] = str_replace("<br />\r","\r\n",$value);
-	while(end($arrayUsers)=='')
+	while(count($arrayUsers)!=0 && str_replace("\r","",end($arrayUsers))=='')
 		array_pop($arrayUsers);
-	
+			
 	return $arrayUsers;
 }
 
@@ -167,7 +173,7 @@ function readUser($id,$filename)
  */
 function initKeyedArrayUser()
 {
-	$keys=array('id','name','email','pass','desc','pet','city','coder','languages','photo');
+	$keys=array('id','name','email','pass','desc','pet','city','coder','languages');
 	$arrayUser=array();
 	foreach($keys as $key)
 		$arrayUser[$key]=NULL;

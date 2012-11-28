@@ -1,5 +1,7 @@
 <?php
 
+define ("DOCUMENT_ROOT", $_SERVER['DOCUMENT_ROOT']);
+
 require_once("../application/models/applicationModel.php");
 require_once("../application/models/usersModel.php");
 
@@ -38,28 +40,28 @@ switch($action)
 			exit();
 		}
 		else
-			include("../application/views/formulario.php");
+			$content=renderView($config,"formulario",array('arrayUser'=>$arrayUser));
 		break;
 	case 'delete':
 		if($_POST)
 		{
-			if($_POST['submit']=='si')
+			if($_POST['submit']=='yes')
 				deleteUser($config['uploadDirectory'],$_GET['id'],$config['filename']);
 			header("Location: users.php?action=select");
 			exit();
 		}
 		else
-		{
-			include("../application/views/delete.php");
-		}
+			$content=renderView($config,"delete",array());
 		break;
 	case 'select':
 		$arrayUsers=readUsersFromFile($config['filename']);
-		include("../application/views/select.php");
+			echo "<pre>";
+			print_r($arrayUsers);
+			echo "</pre>";
+			die;
+		$content=renderView($config,"select",array('arrayUsers'=>$arrayUsers));
 	default:
 		break;
 }
-
-$content = "ESTO ES CONTENT EN USERS";
 include("../application/layouts/layout_admin1.php");
 ?>

@@ -1,4 +1,5 @@
-<pre><? print_r($arrayUser)?></pre>
+<?php $arrayUser=$params['arrayUser']?>
+
 <form method="POST" enctype="multipart/form-data">
 <input type="hidden" name="id" value="1"/>
 <ul>

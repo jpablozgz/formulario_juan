@@ -1,2 +1,4 @@
+1|Juan Pablo|jpablo@unizar.es|hola|Esto es una descripción<br />
+Y esto su segunda línea|dog,cat|zgz|php|en,es|DSC_0780.JPG<br />
+<br />
 <br />
-1|Juan|||||zgz||||uploads
